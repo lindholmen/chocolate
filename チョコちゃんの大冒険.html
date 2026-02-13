@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>チョコちゃんの大冒険</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Zen Maru Gothic', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #1a0b2e; 
+            color: #fff0f5; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 800px; 
+            background: radial-gradient(circle at center, #3e1e68 0%, #120420 100%);
+            box-shadow: 0 0 50px rgba(255, 105, 180, 0.2);
+            overflow: hidden;
+            border-left: 2px solid #5d3a75;
+            border-right: 2px solid #5d3a75;
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        .ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;
+        }
+
+        .hud-top {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            width: 100%; z-index: 10;
+        }
+
+        .score-board {
+            background: rgba(40, 10, 40, 0.8); border: 2px solid #e91e63;
+            border-radius: 0 0 20px 20px; padding: 10px 25px; text-align: center;
+            box-shadow: 0 5px 15px rgba(233, 30, 99, 0.3);
+        }
+        .score-label { font-size: 14px; color: #ff80ab; letter-spacing: 1px; }
+        .score-val { font-size: 32px; font-weight: bold; color: #fff; text-shadow: 0 0 10px #e91e63; }
+
+        .lives-display {
+            font-size: 28px; color: #ff1744; text-shadow: 0 0 8px rgba(255, 23, 68, 0.8);
+            background: rgba(0,0,0,0.4); padding: 5px 20px; border-radius: 30px;
+        }
+
+        .energy-container {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            width: 260px; text-align: center; z-index: 10;
+        }
+        .tank-frame {
+            width: 100%; height: 30px; background: #2a2a40; border: 2px solid #e91e63;
+            border-radius: 15px; padding: 4px; position: relative; box-shadow: 0 0 15px rgba(233, 30, 99, 0.2);
+        }
+        .tank-fill {
+            width: 0%; height: 100%; background: linear-gradient(90deg, #f48fb1, #e91e63);
+            border-radius: 11px; transition: width 0.1s; box-shadow: 0 0 15px #e91e63;
+        }
+        .tank-label { font-size: 14px; color: #fff0f5; text-shadow: 0 2px 4px rgba(0,0,0,0.5); margin-bottom: 2px; }
+        .ready-text {
+            color: #76ff03; font-weight: bold; display: none; font-size: 16px; margin-top: 4px;
+            text-shadow: 0 0 10px #76ff03; animation: pulse 0.5s infinite alternate;
+        }
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
+
+        /* --- Tutorial & Modals --- */
+        .tutorial-section {
+            background: rgba(0, 0, 0, 0.3); border-radius: 20px; padding: 15px 30px;
+            margin-bottom: 20px; border: 1px dashed rgba(233, 30, 99, 0.5);
+            display: flex; align-items: center; gap: 15px;
+        }
+        .ingredient-badge { display: flex; flex-direction: column; align-items: center; width: 60px; }
+        .badge-icon { width: 30px; height: 30px; margin-bottom: 5px; box-shadow: 0 0 10px currentColor; }
+        .badge-text { font-size: 12px; color: #ccc; }
+        .icon-cocoa { background: #5d4037; border-radius: 50%; transform: scale(1, 1.4); color: #5d4037; }
+        .icon-sugar { background: #ffffff; border-radius: 4px; color: #fff; }
+        .icon-milk { background: #40c4ff; border-top-left-radius: 50%; border-bottom-right-radius: 50%; transform: rotate(45deg); color: #40c4ff; }
+        .recipe-arrow { font-size: 24px; color: #ffd700; }
+        .recipe-result { border: 2px solid #76ff03; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; font-size: 20px; color: #76ff03; box-shadow: 0 0 15px #76ff03; }
+
+        .modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(12, 4, 20, 0.95);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.4s;
+            text-align: center; padding: 20px;
+        }
+        .modal.active { opacity: 1; pointer-events: auto; }
+        .modal h1 {
+            font-size: 48px; margin-bottom: 5px;
+            background: linear-gradient(to bottom, #fce4ec, #e91e63);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 20px rgba(233, 30, 99, 0.4);
+        }
+        .modal p.subtitle { color: #ff80ab; margin-bottom: 20px; }
+        .modal h2 { font-size: 32px; color: #e91e63; margin: 10px 0; }
+        .modal p { color: #ccc; font-size: 16px; max-width: 500px; line-height: 1.6; margin-bottom: 20px; }
+        
+        .controls-info { display: flex; gap: 15px; margin-bottom: 20px; justify-content: center; }
+        .key-box {
+            border: 1px solid #e91e63; background: rgba(233, 30, 99, 0.1); padding: 8px 12px;
+            border-radius: 5px; font-family: sans-serif; font-size: 14px; color: #fff; font-weight: bold;
+        }
+        .btn {
+            background: linear-gradient(135deg, #e91e63, #c2185b); border: none; padding: 15px 50px;
+            font-size: 24px; font-weight: bold; color: #fff; cursor: pointer;
+            border-radius: 50px; box-shadow: 0 0 20px rgba(233, 30, 99, 0.6);
+            transition: transform 0.1s, box-shadow 0.1s; pointer-events: auto; position: relative; z-index: 101;
+        }
+        .btn:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(233, 30, 99, 0.8); }
+        .btn:active { transform: scale(0.95); }
+
+        #flash-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #e91e63; opacity: 0; pointer-events: none; transition: opacity 0.1s;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="flash-overlay"></div>
+
+    <div class="ui-layer">
+        <div class="energy-container">
+            <div class="tank-label">シールドエネルギー</div>
+            <div class="tank-frame">
+                <div class="tank-fill" id="energy-bar"></div>
+            </div>
+            <div class="ready-text" id="ready-msg">スペースキーを押して！</div>
+        </div>
+        <div class="hud-top">
+            <div class="score-board">
+                <div class="score-label">スコア</div>
+                <div class="score-val" id="score-display">0</div>
+            </div>
+            <div class="lives-display" id="lives-display">❤️ ❤️ ❤️</div>
+        </div>
+    </div>
+
+    <div class="modal active" id="start-screen">
+        <h1>チョコちゃんの大冒険</h1>
+        <p class="subtitle">～ 空飛ぶチョコレート工場 ～</p>
+
+        <div class="tutorial-section">
+            <div class="ingredient-badge">
+                <div class="badge-icon icon-cocoa"></div>
+                <span class="badge-text">ココア<br>(可可)</span>
+            </div>
+            <div class="ingredient-badge">
+                <div class="badge-icon icon-sugar"></div>
+                <span class="badge-text">砂糖<br>(白糖)</span>
+            </div>
+            <div class="ingredient-badge">
+                <div class="badge-icon icon-milk"></div>
+                <span class="badge-text">ミルク<br>(牛奶)</span>
+            </div>
+            <div class="recipe-arrow">→</div>
+            <div class="recipe-result">🛡️</div>
+        </div>
+        <p style="margin-top: -10px; color: #76ff03;">
+            材料を集めてエネルギーを貯めよ！<br>
+            <span style="font-size: 14px; color: #fff; opacity: 0.8;">
+            (材料でエネルギーをチャージして、弾を防ごう！)<br>
+            たまに金色のチョコが出るよ～
+            </span>
+        </p>
+
+        <div class="controls-info">
+            <div class="key-box">移動: WASD / 矢印</div>
+            <div class="key-box">シールド: スペース</div>
+        </div>
+        <button class="btn" id="start-btn">冒険の始まり</button>
+    </div>
+
+    <div class="modal" id="game-over-screen">
+        <h2>ゲームオーバー...</h2>
+        <p>チョコちゃん、よく頑張りました！</p>
+        <div class="score-board" style="margin-bottom: 20px; border-color: #e91e63;">
+            <div class="score-label">最終スコア</div>
+            <div class="score-val" id="final-score">0</div>
+        </div>
+        <p style="color: #e91e63; font-size: 20px;">ハイスコア: <span id="high-score">0</span></p>
+        <button class="btn" id="restart-btn">もういちど挑戦</button>
+    </div>
+</div>
+
+<script>
+/**
+ * CHOCOLATE PRINCESS: SHIELD TANK UPDATE
+ * - Bullets drain Shield Energy first.
+ * - Golden Chocolate restores lives.
+ * - Squirrels shoot much slower.
+ */
+
+const CONFIG = {
+    acceleration: 0.5,
+    friction: 0.90,
+    maxSpeed: 6,
+    shieldDuration: 300, 
+    energyPerIngredient: 10,
+    
+    baseSpawnRate: 120, 
+    baseEnemySpeed: 1.5,
+    difficultyStep: 800,
+    squirrelShootRate: 0.00003, // GREATLY REDUCED
+    bulletEnergyPenalty: 25,   // How much energy a bullet removes
+    goldChocolateRate: 0.0005  // Rare spawn rate
+};
+
+const State = {
+    isPlaying: false, score: 0, highScore: 0, lives: 3, energy: 0, 
+    isShielded: false, shieldTimer: 0, frame: 0, width: 800, height: 600, difficulty: 1
+};
+
+const Input = {
+    keys: {}, down: false,
+    init() {
+        window.addEventListener('keydown', (e) => {
+            this.keys[e.code] = true;
+            if (e.code === 'Space') {
+                e.preventDefault(); 
+                if (!this.down && State.isPlaying) {
+                    game.activateShield();
+                    this.down = true;
+                }
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            this.keys[e.code] = false;
+            if (e.code === 'Space') this.down = false;
+        });
+    },
+    getVector() {
+        let dx = 0, dy = 0;
+        if (this.keys['ArrowUp'] || this.keys['KeyW']) dy = -1;
+        if (this.keys['ArrowDown'] || this.keys['KeyS']) dy = 1;
+        if (this.keys['ArrowLeft'] || this.keys['KeyA']) dx = -1;
+        if (this.keys['ArrowRight'] || this.keys['KeyD']) dx = 1;
+        if (dx !== 0 && dy !== 0) { const len = Math.sqrt(dx*dx + dy*dy); dx /= len; dy /= len; }
+        return { dx, dy };
+    }
+};
+
+class CachedBackground {
+    constructor(canvas) {
+        this.canvas = canvas; this.bgCanvas = document.createElement('canvas');
+        this.ctx = this.bgCanvas.getContext('2d'); this.gears = []; this.generateGears();
+    }
+    resize(w, h) { this.bgCanvas.width = w; this.bgCanvas.height = h; this.renderCache(); }
+    generateGears() {
+        for (let i = 0; i < 8; i++) this.gears.push({
+            x: 0, y: 0, radius: 80 + Math.random() * 150, teeth: Math.floor(8 + Math.random() * 8)
+        });
+    }
+    renderCache() {
+        const w = this.bgCanvas.width, h = this.bgCanvas.height;
+        this.ctx.clearRect(0, 0, w, h);
+        this.gears.forEach(g => {
+            g.x = Math.random() * w; g.y = Math.random() * h;
+            this.ctx.save(); this.ctx.translate(g.x, g.y);
+            this.ctx.fillStyle = `rgba(212, 156, 30, 0.12)`;
+            this.ctx.beginPath();
+            for(let i=0; i<g.teeth*2; i++){
+                const a = (Math.PI*2*i)/(g.teeth*2);
+                this.ctx.lineTo(Math.cos(a)*(i%2===0?g.radius:g.radius*0.85), 
+                                 Math.sin(a)*(i%2===0?g.radius:g.radius*0.85));
+            }
+            this.ctx.fill(); this.ctx.restore();
+        });
+    }
+    draw(gameCtx) { if (gameCtx) gameCtx.drawImage(this.bgCanvas, 0, 0); }
+}
+
+class Player {
+    constructor() {
+        this.x = State.width / 2; this.y = State.height - 120;
+        this.vx = 0; this.vy = 0; this.iFrames = 0; this.damageFlash = 0;
+    }
+    update() {
+        const { dx, dy } = Input.getVector();
+        this.vx += dx * CONFIG.acceleration; this.vy += dy * CONFIG.acceleration;
+        this.vx *= CONFIG.friction; this.vy *= CONFIG.friction;
+        const speed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+        if (speed > CONFIG.maxSpeed) {
+            this.vx = (this.vx / speed) * CONFIG.maxSpeed;
+            this.vy = (this.vy / speed) * CONFIG.maxSpeed;
+        }
+        this.x += this.vx; this.y += this.vy;
+        if (this.x < 20) { this.x = 20; this.vx *= -0.5; }
+        if (this.x > State.width - 20) { this.x = State.width - 20; this.vx *= -0.5; }
+        if (this.y < 20) { this.y = 20; this.vy *= -0.5; }
+        if (this.y > State.height - 20) { this.y = State.height - 20; this.vy *= -0.5; }
+        if (this.iFrames > 0) this.iFrames--;
+        if (this.damageFlash > 0) this.damageFlash--;
+    }
+    takeDamage() {
+        if (State.isShielded || this.iFrames > 0) return; 
+        this.iFrames = 150; game.damage();
+    }
+    // Visual flash when energy is drained
+    flashEnergy() { this.damageFlash = 10; }
+    draw(ctx) {
+        ctx.save(); ctx.translate(this.x, this.y);
+        
+        // Visual flash for Energy Drain
+        if (this.damageFlash > 0) {
+            ctx.fillStyle = `rgba(255, 235, 59, ${this.damageFlash/20})`;
+            ctx.beginPath(); ctx.arc(0,0, 30, 0, Math.PI*2); ctx.fill();
+        }
+
+        if (this.iFrames > 0 && Math.floor(State.frame / 4) % 2 === 0) {
+            // Invisible
+        } else {
+            if (State.isShielded) {
+                ctx.beginPath(); ctx.arc(0, 0, 38, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(118, 255, 3, 0.1)`; ctx.strokeStyle = `rgba(118, 255, 3, 1)`;
+                ctx.lineWidth = 3; ctx.fill(); ctx.stroke();
+            }
+            const glassGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, 20);
+            glassGrad.addColorStop(0, "rgba(255, 240, 245, 0.9)");
+            glassGrad.addColorStop(1, "rgba(233, 30, 99, 0.4)");
+            ctx.fillStyle = glassGrad; ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.ellipse(0, 0, 20, 25, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#ffd700"; ctx.fillRect(-5, -22, 10, 4);
+            ctx.beginPath(); ctx.moveTo(-6, -22); ctx.lineTo(-4, -28); ctx.lineTo(0, -22); ctx.lineTo(4, -28); ctx.lineTo(6, -22); ctx.stroke();
+            ctx.fillStyle = "#fbc02d"; ctx.fillRect(-10, 20, 20, 4);
+            ctx.fillStyle = Math.random() > 0.5 ? "#ff5722" : "#ffeb3b";
+            ctx.beginPath(); ctx.moveTo(-5, 24); ctx.lineTo(5, 24); ctx.lineTo(0, 28 + Math.random() * 10); ctx.fill();
+        }
+        ctx.restore();
+    }
+}
+
+class Entity { constructor(x, y) { this.x = x; this.y = y; this.dead = false; } }
+
+class Ingredient extends Entity {
+    constructor(x) {
+        super(x, -20); this.type = ['cocoa', 'sugar', 'milk'][Math.floor(Math.random()*3)];
+        this.oscillation = Math.random() * 100; this.speed = (CONFIG.baseEnemySpeed * 1.2) + Math.random(); 
+    }
+    update() {
+        this.y += this.speed; this.x += Math.sin((this.y + this.oscillation) * 0.02) * 0.5;
+        if(this.y > State.height + 20) this.dead = true;
+    }
+    draw(ctx) {
+        ctx.save(); ctx.translate(this.x, this.y); ctx.shadowBlur = 8;
+        if (this.type === 'cocoa') {
+            ctx.fillStyle = "#5d4037"; ctx.shadowColor = "#5d4037";
+            ctx.beginPath(); ctx.ellipse(0, 0, 9, 13, 0, 0, Math.PI*2); ctx.fill();
+        } else if (this.type === 'sugar') {
+            ctx.fillStyle = "#ffffff"; ctx.shadowColor = "#fff"; ctx.fillRect(-8, -8, 16, 16);
+        } else {
+            ctx.fillStyle = "#40c4ff"; ctx.shadowColor = "#40c4ff";
+            ctx.beginPath(); ctx.moveTo(0, -12); 
+            ctx.bezierCurveTo(12, -6, 12, 10, 0, 10); 
+            ctx.bezierCurveTo(-12, 10, -12, -6, 0, -12); ctx.fill(); 
+        }
+        ctx.restore();
+    }
+}
+
+class GoldenChocolate extends Entity {
+    constructor(x) {
+        super(x, -30);
+        this.speed = CONFIG.baseEnemySpeed;
+        this.rot = 0;
+    }
+    update() {
+        this.y += this.speed;
+        this.rot += 0.05;
+        if(this.y > State.height + 40) this.dead = true;
+    }
+    draw(ctx) {
+        ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rot);
+        ctx.fillStyle = "#ffd700"; ctx.shadowBlur = 15; ctx.shadowColor = "#ffeb3b";
+        ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+        
+        // Draw Gold Star/Diamond
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+            ctx.lineTo(Math.cos((18 + i * 72) / 180 * Math.PI) * 15,
+                       Math.sin((18 + i * 72) / 180 * Math.PI) * 15);
+            ctx.lineTo(Math.cos((54 + i * 72) / 180 * Math.PI) * 7,
+                       Math.sin((54 + i * 72) / 180 * Math.PI) * 7);
+        }
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.restore();
+    }
+}
+
+class Enemy extends Entity {
+    constructor(x, type) {
+        super(x, -50); this.type = type;
+        let timeSpeedMult = 1 + (State.frame / 15000); 
+        this.speed = (type === 'squirrel') ? CONFIG.baseEnemySpeed : CONFIG.baseEnemySpeed * 1.2;
+        this.speed *= timeSpeedMult; this.radius = 22;
+    }
+    update() {
+        this.y += this.speed; if(this.y > State.height + 50) this.dead = true;
+        if (this.type === 'squirrel' && this.y > 100 && this.y < State.height - 100) {
+            let startDelay = (State.frame < 600) ? 0 : 1; 
+            let timeShootProb = (State.frame / 60000); // Very slow ramp up
+            if (Math.random() < (CONFIG.squirrelShootRate * startDelay) + timeShootProb) { game.shoot(this); }
+        }
+    }
+    draw(ctx) {
+        ctx.save(); ctx.translate(this.x, this.y);
+        if(this.type === 'gear') {
+            ctx.fillStyle = "#616161"; ctx.lineWidth = 2;
+            ctx.beginPath();
+            for(let i=0; i<16; i++){
+                let a = (Math.PI*2*i)/16; let r = i%2===0 ? 20 : 14;
+                ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+            }
+            ctx.fill(); ctx.strokeStyle = "#9e9e9e"; ctx.stroke();
+        } else {
+            ctx.fillStyle = "#795548";
+            ctx.beginPath(); ctx.ellipse(0, 10, 16, 22, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(0, -8, 14, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#e91e63"; ctx.fillRect(-3, 28, 6, 12);
+        }
+        ctx.restore();
+    }
+}
+
+class Bullet extends Entity {
+    constructor(x, y, tx, ty) {
+        super(x, y);
+        const angle = Math.atan2(ty - y, tx - x);
+        this.vx = Math.cos(angle) * 5; this.vy = Math.sin(angle) * 5;
+    }
+    update() {
+        this.x += this.vx; this.y += this.vy;
+        if(this.x < -20 || this.x > State.width + 20 || this.y > State.height + 20) this.dead = true;
+    }
+    draw(ctx) {
+        ctx.save();
+        ctx.shadowBlur = 15; ctx.shadowColor = "#ffeb3b"; ctx.fillStyle = "#ffeb3b";
+        ctx.beginPath(); ctx.arc(this.x, this.y, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+}
+
+class FloatingText {
+    constructor(x, y, text, color) {
+        this.x = x; this.y = y; this.text = text; this.color = color;
+        this.life = 1.0;
+        this.vy = -1;
+    }
+    update() {
+        this.y += this.vy; this.life -= 0.02;
+    }
+    draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.font = "bold 20px 'Zen Maru Gothic'";
+        ctx.strokeStyle = "black"; ctx.lineWidth = 3;
+        ctx.strokeText(this.text, this.x, this.y);
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+    }
+}
+
+class Particle {
+    constructor(x, y, c) { this.x = x; this.y = y; this.c = c; this.life = 1; this.vx = (Math.random()-0.5)*5; this.vy = (Math.random()-0.5)*5; }
+    update() { this.x+=this.vx; this.y+=this.vy; this.life-=0.03; }
+    draw(ctx) {
+        ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.c; ctx.beginPath(); ctx.arc(this.x, this.y, 3, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+}
+
+class Game {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas'); this.ctx = this.canvas.getContext('2d', { alpha: false });
+        this.bg = new CachedBackground(this.canvas); this.reqID = null; this.resize();
+        window.addEventListener('resize', () => this.resize()); Input.init();
+        const hs = localStorage.getItem('cp_choco_high'); if(hs) State.highScore = parseInt(hs);
+    }
+    resize() {
+        const c = document.getElementById('game-container'); State.width = c.offsetWidth; State.height = c.offsetHeight;
+        this.canvas.width = State.width; this.canvas.height = State.height; this.bg.resize(State.width, State.height);
+    }
+    start() {
+        if (this.reqID) cancelAnimationFrame(this.reqID);
+        State.score = 0; State.lives = 3; State.energy = 0; State.isShielded = false; 
+        State.frame = 0; State.difficulty = 1;
+        this.player = new Player(); 
+        this.ingredients = []; this.enemies = []; this.bullets = []; this.particles = []; this.goldItems = []; this.floatTexts = [];
+        this.updateUI(); document.querySelectorAll('.modal').forEach(m => m.classList.remove('active')); State.isPlaying = true; this.loop();
+    }
+    shoot(enemy) { this.bullets.push(new Bullet(enemy.x, enemy.y + 20, this.player.x, this.player.y)); }
+    activateShield() {
+        if(State.energy >= 100) { State.isShielded = true; State.shieldTimer = CONFIG.shieldDuration; State.energy = 0; this.updateUI(); }
+    }
+    spawn() {
+        let scoreFactor = Math.floor(State.score / 100);
+        let timeFactor = Math.floor(State.frame / 600);
+        let difficultyTotal = scoreFactor + timeFactor;
+        let currentSpawnRate = Math.max(25, CONFIG.baseSpawnRate - difficultyTotal);
+        if(State.frame % currentSpawnRate === 0) {
+            const x = Math.random() * (State.width-40) + 20;
+            
+            // Golden Chocolate Rare Spawn
+            if (Math.random() < CONFIG.goldChocolateRate) {
+                this.goldItems.push(new GoldenChocolate(x));
+                return; // Skip normal spawn if gold appears
+            }
+
+            const r = Math.random();
+            if(r < 0.6) { this.ingredients.push(new Ingredient(x)); }
+            else if(r < 0.85) { this.enemies.push(new Enemy(x, 'gear')); }
+            else { this.enemies.push(new Enemy(x, 'squirrel')); }
+        }
+    }
+    collision() {
+        const p = this.player, r = 18;
+        
+        // Ingredients
+        for(let i=this.ingredients.length-1; i>=0; i--){
+            let it = this.ingredients[i];
+            if(Math.hypot(p.x-it.x, p.y-it.y) < r+12) { 
+                State.score += 10; State.energy = Math.min(100, State.energy + CONFIG.energyPerIngredient); 
+                this.particles.push(new Particle(it.x, it.y, '#ffd700')); 
+                this.ingredients.splice(i, 1); 
+            }
+        }
+
+        // Golden Chocolate
+        for(let i=this.goldItems.length-1; i>=0; i--){
+            let g = this.goldItems[i];
+            if(Math.hypot(p.x-g.x, p.y-g.y) < r+15) { 
+                State.score += 50;
+                if(State.lives < 3) {
+                    State.lives++;
+                    this.floatTexts.push(new FloatingText(p.x, p.y - 40, "❤️ UP!", "#ff1744"));
+                }
+                this.particles.push(new Particle(g.x, g.y, '#ffd700')); 
+                this.goldItems.splice(i, 1); 
+            }
+        }
+        
+        // Enemies (Physical Damage)
+        for(let i=this.enemies.length-1; i>=0; i--){
+            let e = this.enemies[i];
+            if(Math.hypot(p.x-e.x, p.y-e.y) < r+18) { p.takeDamage(); this.particles.push(new Particle(e.x, e.y, '#e91e63')); this.enemies.splice(i, 1); }
+        }
+
+        // Bullets (Energy Drain)
+        for(let i=this.bullets.length-1; i>=0; i--){
+            let b = this.bullets[i];
+            if(Math.hypot(p.x-b.x, p.y-b.y) < r+8) { 
+                if (State.energy > 0) {
+                    // Drain Energy
+                    State.energy = Math.max(0, State.energy - CONFIG.bulletEnergyPenalty);
+                    p.flashEnergy();
+                    this.particles.push(new Particle(b.x, b.y, '#ffeb3b')); 
+                    this.floatTexts.push(new FloatingText(p.x, p.y - 20, `-${CONFIG.bulletEnergyPenalty}`, "#ffeb3b"));
+                    // Small iframe so one bullet doesn't drain 5 times instantly
+                    p.iFrames = 5; 
+                } else {
+                    // No Energy -> Die
+                    p.takeDamage();
+                    this.particles.push(new Particle(b.x, b.y, '#ff1744')); 
+                }
+                this.bullets.splice(i, 1); 
+            }
+        }
+    }
+    damage() {
+        State.lives--;
+        const f = document.getElementById('flash-overlay'); f.style.opacity = 0.5; setTimeout(()=>f.style.opacity=0, 150);
+        this.updateUI(); if(State.lives <= 0) this.gameOver();
+    }
+    loop() {
+        if(!State.isPlaying) return;
+        try {
+            const ctx = this.ctx; ctx.fillStyle = "#1a0b2e"; ctx.fillRect(0,0, State.width, State.height); this.bg.draw(ctx);
+            State.frame++; State.difficulty = 1 + Math.floor(State.score/CONFIG.difficultyStep)*0.1; this.spawn();
+            
+            this.ingredients.forEach((e,i,arr) => { e.update(); e.draw(ctx); if(e.dead) arr.splice(i,1); });
+            this.goldItems.forEach((e,i,arr) => { e.update(); e.draw(ctx); if(e.dead) arr.splice(i,1); });
+            this.enemies.forEach((e,i,arr) => { e.update(); e.draw(ctx); if(e.dead) arr.splice(i,1); });
+            this.bullets.forEach((e,i,arr) => { e.update(); e.draw(ctx); if(e.dead) arr.splice(i,1); });
+            this.particles.forEach((e,i,arr) => { e.update(); e.draw(ctx); if(e.life<=0) arr.splice(i,1); });
+            this.floatTexts.forEach((e,i,arr) => { e.update(); e.draw(ctx); if(e.life<=0) arr.splice(i,1); });
+
+            this.player.update(); this.player.draw(ctx);
+            if(State.isShielded) { State.shieldTimer--; if(State.shieldTimer<=0) State.isShielded = false; }
+            this.collision(); this.updateUI();
+            this.reqID = requestAnimationFrame(() => this.loop());
+        } catch(e) { console.error(e); State.isPlaying = false; }
+    }
+    updateUI() {
+        document.getElementById('score-display').innerText = State.score; document.getElementById('lives-display').innerText = "❤️ ".repeat(State.lives);
+        const bar = document.getElementById('energy-bar'); bar.style.width = State.energy + "%";
+        const ready = document.getElementById('ready-msg');
+        ready.style.display = (State.energy >= 100) ? 'block' : 'none';
+        if(State.isShielded) { bar.style.background = "#76ff03"; bar.style.width = (State.shieldTimer / CONFIG.shieldDuration * 100) + "%"; }
+        else { bar.style.background = "linear-gradient(90deg, #f48fb1, #e91e63)"; }
+    }
+    gameOver() {
+        State.isPlaying = false; if (this.reqID) cancelAnimationFrame(this.reqID);
+        if(State.score > State.highScore) { State.highScore = State.score; localStorage.setItem('cp_choco_high', State.highScore); }
+        document.getElementById('final-score').innerText = State.score; document.getElementById('high-score').innerText = State.highScore;
+        document.getElementById('game-over-screen').classList.add('active');
+    }
+}
+const game = new Game();
+document.getElementById('start-btn').onclick = () => game.start();
+document.getElementById('restart-btn').onclick = () => game.start();
+</script>
+</body>
+</html>```
