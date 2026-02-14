@@ -12,7 +12,7 @@
             user-select: none;
             -webkit-user-select: none;
             font-family: 'Zen Maru Gothic', sans-serif;
-            touch-action: none; /* Prevents browser zooming/scrolling on Mobile */
+            touch-action: none; 
         }
 
         body {
@@ -81,7 +81,6 @@
         }
         @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
 
-        /* --- Modals --- */
         .modal {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(12, 4, 20, 0.95);
@@ -91,7 +90,6 @@
         }
         .modal.active { opacity: 1; pointer-events: auto; }
         
-        /* Controls Layout for Start Screen */
         .controls-grid {
             display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
             margin: 20px 0; width: 100%; max-width: 400px;
@@ -104,9 +102,7 @@
         .control-title { font-size: 14px; color: #e91e63; font-weight: bold; margin-bottom: 5px; }
         .control-desc { font-size: 11px; color: #aaa; line-height: 1.4; }
 
-        .ingredient-row {
-            display: flex; justify-content: center; align-items: center; gap: 10px; margin: 15px 0;
-        }
+        .ingredient-row { display: flex; justify-content: center; align-items: center; gap: 10px; margin: 15px 0; }
         .ingredient-icon { width: 20px; height: 20px; box-shadow: 0 0 5px currentColor; }
         .icon-cocoa { background: #5d4037; border-radius: 50%; transform: scale(1, 1.4); color: #5d4037; }
         .icon-sugar { background: #ffffff; border-radius: 4px; color: #fff; }
@@ -201,10 +197,8 @@
 
 <script>
 /**
- * CHOCOLATE PRINCESS: TOUCH COMPATIBLE EDITION
- * - Added Touch Joystick logic for mobile.
- * - Double tap acts as Spacebar (Shield).
- * - Scaled down UI for smaller screens.
+ * CHOCOLATE PRINCESS: TOUCH COMPATIBLE EDITION (FIXED)
+ * - Fixed missing CONFIG variables causing instant crash.
  */
 
 const CONFIG = {
@@ -213,11 +207,18 @@ const CONFIG = {
     maxSpeed: 7,
     shieldDuration: 300, 
     energyPerIngredient: 12,
-    joystickThreshold: 10, // Pixel move before joystick activates
+    
+    // === FIX: RESTORED CONFIG VALUES ===
+    baseSpawnRate: 120, 
+    baseEnemySpeed: 1.5,
+    difficultyStep: 800,
+    // ====================================
+
+    joystickThreshold: 10, 
     squirrelShootRate: 0.00003,
     bulletEnergyPenalty: 25,
     goldChocolateRate: 0.0005,
-    doubleTapTime: 300 // ms
+    doubleTapTime: 300 
 };
 
 const State = {
@@ -248,11 +249,9 @@ const Input = {
 
         // Touch (Mobile)
         const canvas = document.getElementById('gameCanvas');
-        // Prevent default touch actions (scrolling)
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
             if(!State.isPlaying) return;
-            
             const t = e.changedTouches[0];
             this.touch.active = true;
             this.touch.startX = t.clientX;
@@ -272,17 +271,12 @@ const Input = {
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             if(!this.isPlaying || !this.touch.active) return;
-
             const t = e.changedTouches[0];
             const deltaX = t.clientX - this.touch.startX;
             const deltaY = t.clientY - this.touch.startY;
-
-            // Normalize to -1 to 1 range (Simple deadzone logic)
-            // Divide by 100 to get sensitivity
             const sensitivity = 50; 
             this.touch.dx = Math.max(-1, Math.min(1, (deltaX) / sensitivity));
             this.touch.dy = Math.max(-1, Math.min(1, (deltaY) / sensitivity));
-
         }, { passive: false });
 
         ['touchend', 'touchcancel'].forEach(evt => {
@@ -297,24 +291,16 @@ const Input = {
 
     getVector() {
         let dx = 0, dy = 0;
-        
-        // Keyboard Priority if pressed
         if (this.keys['ArrowUp'] || this.keys['KeyW']) dy = -1;
-        else if (this.touch.dy < -0.1) dy = this.touch.dy; // Touch override only if significant
-
+        else if (this.touch.dy < -0.1) dy = this.touch.dy; 
         if (this.keys['ArrowDown'] || this.keys['KeyS']) dy = 1;
         else if (this.touch.dy > 0.1) dy = this.touch.dy;
-
         if (this.keys['ArrowLeft'] || this.keys['KeyA']) dx = -1;
         else if (this.touch.dx < -0.1) dx = this.touch.dx;
-
         if (this.keys['ArrowRight'] || this.keys['KeyD']) dx = 1;
         else if (this.touch.dx > 0.1) dx = this.touch.dx;
-
-        // Normalize if both keys active
         if (dx !== 0 && dy !== 0 && !this.touch.active) {
-            const len = Math.sqrt(dx*dx + dy*dy);
-            dx /= len; dy /= len;
+            const len = Math.sqrt(dx*dx + dy*dy); dx /= len; dy /= len;
         }
         return { dx, dy };
     }
